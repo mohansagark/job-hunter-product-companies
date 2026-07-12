@@ -93,3 +93,4 @@ jobs:
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             --data-urlencode text="${CROSS} Product-companies run failed for $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Logs: ${RUN_URL}" >/dev/null
+
