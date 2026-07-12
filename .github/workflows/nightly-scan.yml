@@ -33,15 +33,15 @@ jobs:
             --data-urlencode text="${GLASS} Product-companies scan started - $(TZ='Asia/Kolkata' date '+%F %H:%M IST')" >/dev/null
 
       - name: Checkout job-hunt
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout portfolio-data (public - source of truth for profile)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: mohansagark/portfolio-data
           path: portfolio-data
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
