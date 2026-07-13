@@ -20,7 +20,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 180     # 140 company pages; 30-90 min typical, headroom
+    timeout-minutes: 120     # bound the run; fail fast instead of hanging on stalled LLM calls
     steps:
       - name: Notify Telegram - scan started
         env:
@@ -82,8 +82,8 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             --data-urlencode text="${CHECK} Product-companies scan completed - $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Top matches sent above." >/dev/null
 
-      - name: Notify Telegram on failure
-        if: failure()
+      - name: Notify Telegram on failure or timeout
+        if: failure() || cancelled()
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -92,5 +92,5 @@ jobs:
           CROSS=$(printf '\xe2\x9d\x8c')   # cross-mark emoji, kept out of the YAML to stay ASCII
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
-            --data-urlencode text="${CROSS} Product-companies run failed for $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Logs: ${RUN_URL}" >/dev/null
+            --data-urlencode text="${CROSS} Product-companies run failed or timed out for $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Logs: ${RUN_URL}" >/dev/null
 
