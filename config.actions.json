@@ -2,8 +2,9 @@
   "tinyfish_api_key": "YOUR_TINYFISH_API_KEY",
   "llm_provider": "openrouter",
   "openrouter_api_key": "YOUR_OPENROUTER_API_KEY",
-  "openrouter_model": "meta-llama/llama-3.3-70b-instruct",
+  "openrouter_model": "qwen/qwen-2.5-7b-instruct",
   "openrouter_fallback_models": [
+    "meta-llama/llama-3.3-70b-instruct",
     "meta-llama/llama-3.3-70b-instruct:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
     "google/gemma-4-31b-it:free",
@@ -21,7 +22,7 @@
     "not_suitable": "On-site or hybrid roles; remote roles geo-restricted to countries that exclude India",
     "relocation_note": "",
     "search_seniority": "senior OR staff OR lead OR principal",
-    "search_keywords": "\"AI engineer\" OR LLM OR \"machine learning\" OR \"frontend engineer\" OR \"frontend developer\" OR \"full stack\" OR React OR \"Next.js\" OR \"React Native\" OR \"software engineer\"",
+    "search_keywords": "\"AI engineer\" OR LLM OR \"frontend engineer\" OR \"frontend developer\" OR \"React\" OR \"Next.js\" OR \"LLM Integration\" OR \"Generative AI\"",
     "min_score": 60,
     "top_n": 20
   }
