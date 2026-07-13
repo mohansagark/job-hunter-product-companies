@@ -20,7 +20,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 120     # bound the run; fail fast instead of hanging on stalled LLM calls
+    timeout-minutes: 240     # 140 companies on paid model take ~2h of honest work; give room to COMPLETE (a timeout wastes spend since results are only saved/sent at the end)
     steps:
       - name: Notify Telegram - scan started
         env:
