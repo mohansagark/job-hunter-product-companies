@@ -71,6 +71,22 @@ def build_message(jobs: list[dict], batches_done: int, batches_total: int,
     return header + format_telegram_message(top, date_str)
 
 
+def split_for_telegram(msg: str, limit: int = 4000) -> list[str]:
+    """Split into <=limit-char chunks at line boundaries so Telegram's 4096-char
+    cap can't reject the message. Splitting on whole lines keeps HTML tags
+    balanced (each rendered line already has matched tags)."""
+    parts: list[str] = []
+    cur = ""
+    for line in msg.split("\n"):
+        if cur and len(cur) + len(line) + 1 > limit:
+            parts.append(cur)
+            cur = ""
+        cur = f"{cur}\n{line}" if cur else line
+    if cur:
+        parts.append(cur)
+    return parts or [msg]
+
+
 def main(argv: "list[str] | None" = None) -> None:
     ap = argparse.ArgumentParser(description="Send one consolidated Telegram digest from shard results")
     ap.add_argument("--results-glob", required=True, help="glob for shard last_scan.json files")
@@ -94,7 +110,11 @@ def main(argv: "list[str] | None" = None) -> None:
     print(f"send_digest: {len(paths)} shard file(s), {len(jobs)} jobs merged, "
           f"batches {args.batches_done}/{args.batches_total}")
     if token and chat and not str(token).startswith("YOUR_"):
-        send_telegram(token, chat, msg)
+        parts = split_for_telegram(msg)
+        for idx, part in enumerate(parts, 1):
+            prefix = f"<b>(part {idx}/{len(parts)})</b>\n" if len(parts) > 1 else ""
+            send_telegram(token, chat, prefix + part)
+        print(f"send_digest: sent in {len(parts)} message(s)")
     else:
         print("send_digest: telegram not configured; message follows:\n" + msg)
 

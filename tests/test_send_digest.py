@@ -59,3 +59,16 @@ def test_message_zero_batches_is_hard_failure():
     msg = send_digest.build_message([], batches_done=0, batches_total=7,
                                     min_score=60, top_n=20)
     assert "FAILED" in msg and "7 batches" in msg
+
+
+def test_split_for_telegram_respects_limit_and_lines():
+    msg = "\n".join(f"line-{i}-{'x' * 90}" for i in range(200))  # ~18k chars
+    parts = send_digest.split_for_telegram(msg, limit=4000)
+    assert len(parts) > 1
+    assert all(len(p) <= 4000 for p in parts)
+    # No line is broken across parts; reassembly is lossless.
+    assert "\n".join(parts) == msg
+
+
+def test_split_for_telegram_short_message_stays_one():
+    assert send_digest.split_for_telegram("short", limit=4000) == ["short"]
