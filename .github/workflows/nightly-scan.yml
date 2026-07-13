@@ -1,9 +1,12 @@
 name: nightly-scan
 
-# Nightly scan of ~140 product-company career pages, scored against Mohan's live
-# portfolio-data profile with OpenRouter, top matches pushed to Telegram. Staggered
-# to 04:00 IST so it does not collide with the remote-boards scanner (02:30 IST)
-# on the shared OpenRouter quota. Any failure pings Telegram with the run link.
+# ~140 product-company career pages is ~6h of serial work - too long for a single
+# GitHub job (6h cap). So the companies are split into 7 parallel shards; each
+# shard scores its slice (paid model) and uploads its results as an artifact.
+# A final consolidate job (if: always()) merges whatever shards finished and sends
+# ONE Telegram digest - so a timeout that kills some shards still delivers the
+# rest (no wasted spend), and a total wipeout still reports a hard failure.
+# Staggered to 04:00 IST so it does not collide with the remote-boards scan.
 
 on:
   schedule:
@@ -18,9 +21,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  scan:
+  notify-start:
     runs-on: ubuntu-latest
-    timeout-minutes: 240     # 140 companies on paid model take ~2h of honest work; give room to COMPLETE (a timeout wastes spend since results are only saved/sent at the end)
     steps:
       - name: Notify Telegram - scan started
         env:
@@ -30,8 +32,17 @@ jobs:
           GLASS=$(printf '\xf0\x9f\x94\x8d')   # magnifying-glass emoji, kept out of the YAML to stay ASCII
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
-            --data-urlencode text="${GLASS} Product-companies scan started - $(TZ='Asia/Kolkata' date '+%F %H:%M IST')" >/dev/null
+            --data-urlencode text="${GLASS} Product-companies scan started (7 batches) - $(TZ='Asia/Kolkata' date '+%F %H:%M IST')" >/dev/null || true
 
+  scan:
+    needs: notify-start
+    strategy:
+      fail-fast: false          # one shard failing must NOT cancel the others
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120        # per shard (~20 companies); generous headroom
+    steps:
       - name: Checkout job-hunt
         uses: actions/checkout@v4
 
@@ -48,49 +59,71 @@ jobs:
       - name: Install autopilot
         run: pip install -e .
 
-      - name: Build config + sync profile from portfolio-data
+      - name: Build config + sync profile, disable per-shard Telegram
         run: |
           cp config.actions.json config.json
           python -m job_hunt.profile_sync --src portfolio-data
+          python -c "import json,pathlib; p=pathlib.Path('config.json'); c=json.loads(p.read_text()); c.pop('telegram', None); p.write_text(json.dumps(c))"
 
-      - name: Run scan
+      - name: Slice companies for this shard (round-robin)
+        run: |
+          python -c "import json,pathlib; s=${{ matrix.shard }}; n=7; cs=json.loads(pathlib.Path('companies.json').read_text()); sub=[c for i,c in enumerate(cs) if i%n==s]; pathlib.Path('companies.json').write_text(json.dumps(sub)); print(f'shard {s}: {len(sub)} companies')"
+
+      - name: Run scan (this shard)
         env:
           TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           LLM_PROVIDER: openrouter
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: autopilot scan
 
-      - name: Commit scan state
+      - name: Upload shard results
+        if: always()              # upload whatever completed; ignore if the shard timed out before writing
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-shard-${{ matrix.shard }}
+          path: state/last_scan.json
+          if-no-files-found: ignore
+          retention-days: 2
+
+  consolidate:
+    needs: scan
+    if: always()                  # run even if some/all shards failed or timed out
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout job-hunt
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install autopilot
+        run: pip install -e .
+
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          path: shard-results
+          pattern: results-shard-*
+
+      - name: Consolidate + send one Telegram digest
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          cp config.actions.json config.json
+          DONE=$(find shard-results -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+          echo "shards with results: $DONE / 7"
+          python -m job_hunt.send_digest \
+            --results-glob "shard-results/**/last_scan.json" \
+            --batches-done "$DONE" --batches-total 7 --config config.json
+
+      - name: Commit merged state (best-effort, for local drafting)
         if: always()
         run: |
+          python -c "import json,glob,pathlib; jobs=[]; [jobs.extend(json.loads(open(f).read())) for f in glob.glob('shard-results/**/last_scan.json', recursive=True)]; pathlib.Path('state').mkdir(exist_ok=True); pathlib.Path('state/last_scan.json').write_text(json.dumps(jobs)); print(len(jobs),'jobs merged')"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f state/last_scan.json 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore: nightly scan state $(date -u +%F) [skip ci]"
           git push || true
-
-      - name: Notify Telegram - scan completed
-        if: success()
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          CHECK=$(printf '\xe2\x9c\x85')   # check-mark emoji, kept out of the YAML to stay ASCII
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            --data-urlencode text="${CHECK} Product-companies scan completed - $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Top matches sent above." >/dev/null
-
-      - name: Notify Telegram on failure or timeout
-        if: failure() || cancelled()
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          CROSS=$(printf '\xe2\x9d\x8c')   # cross-mark emoji, kept out of the YAML to stay ASCII
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            --data-urlencode text="${CROSS} Product-companies run failed or timed out for $(TZ='Asia/Kolkata' date '+%F %H:%M IST'). Logs: ${RUN_URL}" >/dev/null
-
