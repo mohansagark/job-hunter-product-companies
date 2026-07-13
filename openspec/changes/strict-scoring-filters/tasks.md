@@ -23,7 +23,7 @@
 
 ## 5. Local validation
 
-- [ ] 5.1 Run a single-shard scan locally over a small company subset; confirm scored output carries the booleans and the filter drops EU-only / Go-required / full-stack jobs
+- [x] 5.1 Run a single-shard scan locally over a small company subset; confirm scored output carries the booleans and the filter drops EU-only / Go-required / full-stack jobs
 
 ## 6. Mirror to remote-boards
 
@@ -31,4 +31,4 @@
 
 ## 7. Real-run validation
 
-- [ ] 7.1 Trigger a product-companies run; verify the digest's matches are India-doable, skill-matched, and on-target; tune `min_score` if too strict or loose
+- [x] 7.1 Trigger a product-companies run; verify the digest's matches are India-doable, skill-matched, and on-target; tune `min_score` if too strict or loose
