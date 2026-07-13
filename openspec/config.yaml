@@ -1,0 +1,37 @@
+context: |
+  Project: autopilot-jobhunt (product-companies variant) — AI job agent that
+  scans ~140 product-company career pages via TinyFish, scores each against the
+  candidate's resume with an LLM (OpenRouter), and pushes top matches to Telegram.
+  Runs nightly (04:00 IST) via GitHub Actions.
+  Tech stack: Python 3.13; package job_hunt/ (scanner, drafter, notifier,
+  llm_utils, profile_sync, send_digest, main CLI, mcp_server).
+  Nightly workflow is SHARDED: 7 parallel matrix shards (round-robin over
+  companies.json) each score their slice and upload results as an artifact; a
+  consolidate job (if: always()) merges finished shards into ONE Telegram digest
+  via job_hunt/send_digest.py (top-N, flags PARTIAL if shards timed out, hard-fail
+  if zero; auto-splits messages under Telegram's 4096-char limit).
+  Profile rebuilt each run from mohansagark/portfolio-data via profile_sync.py.
+  Scoring model: paid qwen/qwen-2.5-7b-instruct (fallback paid llama-3.3-70b).
+  Conventions: ruff + mypy + pytest with an 85% coverage gate (CI enforces all
+  three); tests mock job_hunt.llm_utils.chat_with_llm — no real network/LLM.
+  GitHub Actions workflow YAML must be pure ASCII (non-ASCII bytes silently break
+  workflow registration; emit emojis via printf). Secrets never committed.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
