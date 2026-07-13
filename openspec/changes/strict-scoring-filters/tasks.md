@@ -27,7 +27,7 @@
 
 ## 6. Mirror to remote-boards
 
-- [ ] 6.1 Apply the same `SCORE_PROMPT` + filter change to the remote-boards repo (`autopilot-jobhunt-forked`); run its tests green
+- [x] 6.1 Apply the same `SCORE_PROMPT` + filter change to the remote-boards repo (`autopilot-jobhunt-forked`); run its tests green
 
 ## 7. Real-run validation
 
