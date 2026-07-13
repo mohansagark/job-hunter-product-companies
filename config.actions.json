@@ -2,8 +2,9 @@
   "tinyfish_api_key": "YOUR_TINYFISH_API_KEY",
   "llm_provider": "openrouter",
   "openrouter_api_key": "YOUR_OPENROUTER_API_KEY",
-  "openrouter_model": "meta-llama/llama-3.3-70b-instruct:free",
+  "openrouter_model": "meta-llama/llama-3.3-70b-instruct",
   "openrouter_fallback_models": [
+    "meta-llama/llama-3.3-70b-instruct:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
     "google/gemma-4-31b-it:free",
     "qwen/qwen3-coder:free"
