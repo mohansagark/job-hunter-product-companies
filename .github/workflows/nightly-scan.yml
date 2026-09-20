@@ -44,10 +44,10 @@ jobs:
     timeout-minutes: 120        # per shard (~20 companies); generous headroom
     steps:
       - name: Checkout job-hunt
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout portfolio-data (private - source of truth for profile)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: mohansagark/portfolio-data
           path: portfolio-data
@@ -55,7 +55,7 @@ jobs:
           # to this repo only, so read it via a read-only deploy key instead.
           ssh-key: ${{ secrets.PORTFOLIO_DATA_DEPLOY_KEY }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload shard results
         if: always()              # upload whatever completed; ignore if the shard timed out before writing
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: results-shard-${{ matrix.shard }}
           path: state/last_scan.json
@@ -94,9 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout job-hunt
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -104,7 +104,7 @@ jobs:
         run: pip install -e .
 
       - name: Download all shard results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: shard-results
           pattern: results-shard-*
